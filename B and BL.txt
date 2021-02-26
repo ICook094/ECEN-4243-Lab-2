@@ -1,0 +1,7 @@
+int B (int imm24){
+    NEXT_STATE.REGS[15] = (CURRENT_STATE.REGS[15] + 8) + imm24 << 2;
+}
+
+int BL (int imm24){
+    NEXT_STATE.REGS[15] = (CURRENT_STATE.REGS[15] + 8) + imm24 << 2;
+    NEXT_STATE.REGS[14] = (CURRENT_STATE.REGS[15] + 8) - 4;
