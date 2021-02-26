@@ -217,6 +217,28 @@ int branch_process(char* i_) {
 	/* This function execute branch instruction */
 
 	/* Add branch instructions here */ 
+	int L = i_[7] - '0';
+	char imm[25];
+	imm[24] = '\0';
+	for(int i = 0; i < 24; i ++) {
+		imm[i] = i_[i+8];
+	}
+	int imm24 = bchar_to_int(imm);
+	if((imm24 >> 23) & 1) {
+		imm24 ^= 0xFF000000;
+		printf("DEBUG: imm24 = %d", imm24);
+	}
+	printf("\n");
+	if(L) {
+		printf("--- This is a BL instruction. \n");
+		BL(imm24);
+		return 0;
+	}
+	else {
+		printf("--- This is a B instruction. \n");
+		B(imm24);
+		return 0;
+	}
 
 	return 1;
 
@@ -292,29 +314,34 @@ int decode_and_execute(char* i_) {
 	d_cond[3] = i_[3]; 
 	d_cond[4] = '\0';
 	int CC = bchar_to_int(d_cond);
-	if(!check_cond(CC)) {
+	if(check_cond(CC)) {
 		printf("- Condition check failed. Treating as NOP. \n");
 		return 0;
 	}
 	if((i_[4] == '1') && (i_[5] == '0') && (i_[6] == '1')) {
 		printf("- This is a Branch Instruction. \n");
 		branch_process(i_);
+		return 0;
 	}
 	if((i_[4] == '0') && (i_[5] == '0') && (i_[6] == '0') && (i_[7] == '0') && (i_[24] == '1') && (i_[25] == '0') && (i_[26] == '0') && (i_[27] == '1')) {
 		printf("- This is a Multiply Instruction. \n");
 		mul_process(i_);
-	}
-	else {
-		printf("- This is a Data Processing Instruction. \n");
-		data_process(i_);
+		return 0;
 	}
 	if((i_[4] == '0') && (i_[5] == '1')) {
 		printf("- This is a Single Data Transfer Instruction. \n");
 		transfer_process(i_);
+		return 0;
 	}
 	if((i_[4] == '1') && (i_[5] == '1') && (i_[6] == '1') && (i_[7] == '1')) {
 		printf("- This is a Software Interruption Instruction. \n");
 		interruption_process(i_);
+		return 0;
+	}
+	else {
+		printf("- This is a Data Processing Instruction. \n");
+		data_process(i_);
+		return 0;
 	}
 	return 0;
 
@@ -329,9 +356,7 @@ void process_instruction() {
 	*/	 
 
 	unsigned int inst_word = mem_read_32(CURRENT_STATE.PC);
-	printf("The instruction is: %x \n", inst_word);
-	printf("33222222222211111111110000000000\n");
-	printf("10987654321098765432109876543210\n");
+	printf("\nThe instruction is: %x \n", inst_word);
 	printf("--------------------------------\n");
 	printf("%s \n", byte_to_binary32(inst_word));
 	printf("\n");

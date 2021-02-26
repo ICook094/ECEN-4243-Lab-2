@@ -17,6 +17,7 @@
 #include <string.h>
 #include "shell.h"
 
+//returns 0 if condition is not met
 int check_cond(int CC) {
 	switch(CC) {
 		case 0: return Z_CUR; //EQ
@@ -33,8 +34,8 @@ int check_cond(int CC) {
 		case 11: return N_CUR != V_CUR; //LT
 		case 12: return (Z_CUR == 0)&&(N_CUR == V_CUR); //GT
 		case 13: return (Z_CUR == 1)||(N_CUR != V_CUR); //LE
-		case 14: return 1; //AL
-		case 15: return 1; //Unconditional
+		case 14: return 0; //AL
+		case 15: return 0; //Unconditional
 		default: return -1; //somethings gone wrong if you get here
 	}
 }
@@ -159,7 +160,29 @@ int AND (int Rd, int Rn, int Operand2, int I, int S, int CC) {
 	return 0;
 }
 
-int BIC (int Rd, int Rn, int Operand2, int I, int S, int CC) { return 0; }
+  
+int B (int imm24) {
+    NEXT_STATE.PC = (CURRENT_STATE.PC + 4) + (imm24 << 2);
+
+}
+
+int BL (int imm24) {
+    NEXT_STATE.PC = (CURRENT_STATE.PC + 4) + (imm24 << 2);
+    NEXT_STATE.REGS[14] = (CURRENT_STATE.PC + 8) - 4;
+}
+
+int BIC (int Rd, int Rn, int Operand2, int I, int S, int CC) { 
+	int cur;
+	int Src2 = addressing_mode_handler(I, Operand2);
+	
+	cur = CURRENT_STATE.REGS[Rn] & ~Src2;
+	NEXT_STATE.REGS[Rd] = cur;
+
+	if(S == 1)
+		set_flags(cur);
+		
+	return 0;
+}
 
 //Sets flags based on Rn + Src2 without storing the result
 int CMN (int Rd, int Rn, int Operand2, int I, int S, int CC){
@@ -169,39 +192,37 @@ int CMN (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	sum = CURRENT_STATE.REGS[Rn] + Src2;
 	int cur = (int)sum;
 	
-	if(S == 1) {
-		if(cur < 0)
-			NEXT_STATE.CPSR |= N_N;
-		if(cur == 0)
-			NEXT_STATE.CPSR |= Z_N;
-		if(sum > 0xFFFFFFFF)
-			NEXT_STATE.CPSR |= C_N;
-		if((~(CURRENT_STATE.REGS[Rn] ^ Src2)) & (CURRENT_STATE.REGS[Rn] ^ sum) & 0x80000000)
-			NEXT_STATE.CPSR |= V_N;
-	}
+	if(cur < 0)
+		NEXT_STATE.CPSR |= N_N;
+	if(cur == 0)
+		NEXT_STATE.CPSR |= Z_N;
+	if(sum > 0xFFFFFFFF)
+		NEXT_STATE.CPSR |= C_N;
+	if((~(CURRENT_STATE.REGS[Rn] ^ Src2)) & (CURRENT_STATE.REGS[Rn] ^ sum) & 0x80000000)
+		NEXT_STATE.CPSR |= V_N;
 	
 	return 0;
 }
 
 //Same as CMN but with Rn - Src2 instead of Rn + Src2
 int CMP (int Rd, int Rn, int Operand2, int I, int S, int CC) {
-		long long sum;
+	long long sum;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
 	sum = CURRENT_STATE.REGS[Rn] - Src2;
 	int cur = (int)sum;
+	printf("DEBUG: cur = %d\n", cur);
 	
-	if(S == 1) {
-		if(cur < 0)
-			NEXT_STATE.CPSR |= N_N;
-		if(cur == 0)
-			NEXT_STATE.CPSR |= Z_N;
-		if(sum > 0xFFFFFFFF)
-			NEXT_STATE.CPSR |= C_N;
-		if((~(CURRENT_STATE.REGS[Rn] ^ Src2)) & (CURRENT_STATE.REGS[Rn] ^ sum) & 0x80000000)
-			NEXT_STATE.CPSR |= V_N;
-	}
+	if(cur < 0)
+		NEXT_STATE.CPSR |= N_N;
+	if(cur == 0)
+		NEXT_STATE.CPSR |= Z_N;
+	if(sum > 0xFFFFFFFF)
+		NEXT_STATE.CPSR |= C_N;
+	if((~(CURRENT_STATE.REGS[Rn] ^ Src2)) & (CURRENT_STATE.REGS[Rn] ^ sum) & 0x80000000)
+		NEXT_STATE.CPSR |= V_N;
 	
+	printf("DEBUG: CPSR = %X\n", NEXT_STATE.CPSR);
 	return 0;
 
 }
@@ -276,7 +297,7 @@ int RSC (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	long long dif;
 	int Src2 = addressing_mode_handler(I, Operand2);
 
-	dif = Src2 - CURRENT_STATE.REGS[Rn] - ~C_N;
+	dif = Src2 - CURRENT_STATE.REGS[Rn] - ~C_CUR;
 	int cur = (int)dif;
 	NEXT_STATE.REGS[Rd] = cur;
 	
@@ -291,7 +312,7 @@ int SBC (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	int Src2 = addressing_mode_handler(I, Operand2);
 
 	//SBC is identical to SUB save for the inverted C bit term.
-	dif = CURRENT_STATE.REGS[Rn] - Src2 - ~C_N;
+	dif = CURRENT_STATE.REGS[Rn] - Src2 - ~C_CUR;
 	int cur = (int)dif;
 	NEXT_STATE.REGS[Rd] = cur;
 	
