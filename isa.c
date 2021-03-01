@@ -21,23 +21,30 @@
 int check_cond(int CC) {
 	switch(CC) {
 		case 0: return Z_CUR; //EQ
-		case 1: return ~Z_CUR; //NE
+		case 1: return ~Z_CUR&1; //NE
 		case 2: return C_CUR; //CS/HS
-		case 3: return ~C_CUR; //CC/LO
+		case 3: return ~C_CUR&1; //CC/LO
 		case 4: return N_CUR; //MI
-		case 5: return ~N_CUR; //PL
+		case 5: return ~N_CUR&1; //PL
 		case 6: return V_CUR; //VS
-		case 7: return ~V_CUR; //VC
-		case 8: return C_CUR&(~Z_CUR); //HI
-		case 9: return (~C_CUR)|Z_CUR; //LS
+		case 7: return ~V_CUR&1; //VC
+		case 8: return C_CUR&(~Z_CUR&1); //HI
+		case 9: return (~C_CUR&1)|Z_CUR; //LS
 		case 10: return N_CUR == V_CUR; //GE
 		case 11: return N_CUR != V_CUR; //LT
 		case 12: return (Z_CUR == 0)&&(N_CUR == V_CUR); //GT
 		case 13: return (Z_CUR == 1)||(N_CUR != V_CUR); //LE
-		case 14: return 0; //AL
-		case 15: return 0; //Unconditional
+		case 14: return 1; //AL
+		case 15: return 1; //Unconditional
 		default: return -1; //somethings gone wrong if you get here
 	}
+}
+
+//sign extends an n bit number to make them compatible with c signed arithmatic
+int sign_extend(int x, int n) {
+	int m = 1U << (n - 1);
+	int r = (x ^ m) - m;
+	return r;
 }
 
 //Handles addressing modes to prevent large chunks of repeated code.
@@ -91,6 +98,29 @@ int addressing_mode_handler(int I, int Operand2) {
 	return Src2;
 }
 
+//same as above, but for memory instructions
+int addressing_mode_mem(int I, int Operand2) {
+	if(I == 0)
+		return sign_extend(Operand2, 12);
+	else {
+		int sh = (Operand2 & 0x00000060) >> 5;
+		int shamt5 = (Operand2 & 0x00000F80) >> 7;
+		int Rm = Operand2 & 0x0000000F;
+		int Src2;
+		switch(sh) {
+			case 0: Src2 = CURRENT_STATE.REGS[Rm] << shamt5;
+			break;
+			case 1: Src2 = CURRENT_STATE.REGS[Rm] >> shamt5;
+			break;
+			case 2: Src2 = CURRENT_STATE.REGS[Rm] >> shamt5;
+			break;
+			case 3: Src2 = (CURRENT_STATE.REGS[Rm] >> shamt5) | (CURRENT_STATE.REGS[Rm] << (32 - shamt5));
+			break;
+		}
+		return Src2;
+	}
+}
+
 //Sets the status flags given the result of an operation
 //to prevent large chunks of repeated code.
 //Since C and V behaviors are instruction dependant, they are implemented below as needed
@@ -116,7 +146,7 @@ int set_flags_as(int cur, long long num, int Src2, int Rn) {
 			NEXT_STATE.CPSR |= V_N;
 }
 
-int ADD (int Rd, int Rn, int Operand2, int I, int S, int CC) {
+int ADD (int Rd, int Rn, int Operand2, int I, int S) {
 	long long sum;
 	int Src2 = addressing_mode_handler(I, Operand2);
 
@@ -132,7 +162,7 @@ int ADD (int Rd, int Rn, int Operand2, int I, int S, int CC) {
 	return 0;
 }
 
-int ADC (int Rd, int Rn, int Operand2, int I, int S, int CC) {
+int ADC (int Rd, int Rn, int Operand2, int I, int S) {
 	long long sum;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
@@ -147,7 +177,7 @@ int ADC (int Rd, int Rn, int Operand2, int I, int S, int CC) {
 	return 0;
 }
 
-int AND (int Rd, int Rn, int Operand2, int I, int S, int CC) {
+int AND (int Rd, int Rn, int Operand2, int I, int S) {
 	int cur;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
@@ -162,16 +192,20 @@ int AND (int Rd, int Rn, int Operand2, int I, int S, int CC) {
 
   
 int B (int imm24) {
+	//printf("DEBUG: pc = 0x%X\n", CURRENT_STATE.PC);
     NEXT_STATE.PC = (CURRENT_STATE.PC + 4) + (imm24 << 2);
+	//printf("DEBUG: off = %d, next pc = 0x%X\n", imm24<<2, NEXT_STATE.PC);
 
 }
 
 int BL (int imm24) {
+	//printf("DEBUG: pc = 0x%X\n", CURRENT_STATE.PC);
     NEXT_STATE.PC = (CURRENT_STATE.PC + 4) + (imm24 << 2);
+	//printf("DEBUG: off = %d, next pc = 0x%X\n", imm24<<2, NEXT_STATE.PC);
     NEXT_STATE.REGS[14] = (CURRENT_STATE.PC + 8) - 4;
 }
 
-int BIC (int Rd, int Rn, int Operand2, int I, int S, int CC) { 
+int BIC (int Rd, int Rn, int Operand2, int I, int S) { 
 	int cur;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
@@ -185,49 +219,33 @@ int BIC (int Rd, int Rn, int Operand2, int I, int S, int CC) {
 }
 
 //Sets flags based on Rn + Src2 without storing the result
-int CMN (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int CMN (int Rd, int Rn, int Operand2, int I, int S){
 	long long sum;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
 	sum = CURRENT_STATE.REGS[Rn] + Src2;
 	int cur = (int)sum;
 	
-	if(cur < 0)
-		NEXT_STATE.CPSR |= N_N;
-	if(cur == 0)
-		NEXT_STATE.CPSR |= Z_N;
-	if(sum > 0xFFFFFFFF)
-		NEXT_STATE.CPSR |= C_N;
-	if((~(CURRENT_STATE.REGS[Rn] ^ Src2)) & (CURRENT_STATE.REGS[Rn] ^ sum) & 0x80000000)
-		NEXT_STATE.CPSR |= V_N;
-	
-	return 0;
+	set_flags_as(cur, sum, Src2, Rn);
 }
 
 //Same as CMN but with Rn - Src2 instead of Rn + Src2
-int CMP (int Rd, int Rn, int Operand2, int I, int S, int CC) {
+int CMP (int Rd, int Rn, int Operand2, int I, int S) {
 	long long sum;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
 	sum = CURRENT_STATE.REGS[Rn] - Src2;
 	int cur = (int)sum;
-	printf("DEBUG: cur = %d\n", cur);
+	//printf("DEBUG: cur = %d\n", cur);
 	
-	if(cur < 0)
-		NEXT_STATE.CPSR |= N_N;
-	if(cur == 0)
-		NEXT_STATE.CPSR |= Z_N;
-	if(sum > 0xFFFFFFFF)
-		NEXT_STATE.CPSR |= C_N;
-	if((~(CURRENT_STATE.REGS[Rn] ^ Src2)) & (CURRENT_STATE.REGS[Rn] ^ sum) & 0x80000000)
-		NEXT_STATE.CPSR |= V_N;
+	set_flags_as(cur, sum, Src2, Rn);
 	
-	printf("DEBUG: CPSR = %X\n", NEXT_STATE.CPSR);
+	//printf("DEBUG: CPSR = %X\n", NEXT_STATE.CPSR);
 	return 0;
 
 }
 
-int EOR (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int EOR (int Rd, int Rn, int Operand2, int I, int S){
 	int cur;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
@@ -241,10 +259,26 @@ int EOR (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	
 }
 
+int LDR(int Rd, int Rn, int Operand2, int I) {
+	int Src2 = addressing_mode_mem(I, Operand2);
+	int Adr = CURRENT_STATE.REGS[Rn] + Src2;
+	NEXT_STATE.REGS[Rd] = mem_read_32(Adr);
+	//printf("DEBUG: adr = 0x%X, src2 = %d, rd = %d\n", Adr, Src2, NEXT_STATE.REGS[Rd]);
+	return 0;
+}
+
+int LDRB(int Rd, int Rn, int Operand2, int I) {
+	int Src2 = addressing_mode_mem(I, Operand2);
+	int Adr = CURRENT_STATE.REGS[Rn] + Src2;
+	NEXT_STATE.REGS[Rd] = mem_read_32(Adr)&0xFF;
+	//printf("DEBUG: adr = 0x%X, src2 = %d, rd = %d\n", Adr, Src2, NEXT_STATE.REGS[Rd]&0xFF);
+	return 0;
+}
+
 //This MOV function implements the functionality of shift and rotate functions through use of addressing modes.
 //This includes the LSL, LSR, ASR, RRX, and ROR instructions.
 //Consequentially, the data_process() will incorrectly identify all of these as MOV.
-int MOV (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int MOV (int Rd, int Rn, int Operand2, int I, int S){
 	int Src2 = addressing_mode_handler(I, Operand2);
 	NEXT_STATE.REGS[Rd] = Src2;
 	
@@ -253,7 +287,7 @@ int MOV (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	return 0;
 }
 
-int MVN (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int MVN (int Rd, int Rn, int Operand2, int I, int S){
 	int cur;
 	//int Src2 = addressing_mode_handler(I, Operand2);
 	
@@ -266,7 +300,7 @@ int MVN (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	return 0;
 }
 
-int ORR (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int ORR (int Rd, int Rn, int Operand2, int I, int S){
 	int cur;
 	int Src2 = addressing_mode_handler(I, Operand2);
 	
@@ -279,7 +313,7 @@ int ORR (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	return 0;
 }
 
-int RSB (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int RSB (int Rd, int Rn, int Operand2, int I, int S){
 	long long dif;
 	int Src2 = addressing_mode_handler(I, Operand2);
 
@@ -293,7 +327,7 @@ int RSB (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	return 0;
 }
 
-int RSC (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int RSC (int Rd, int Rn, int Operand2, int I, int S){
 	long long dif;
 	int Src2 = addressing_mode_handler(I, Operand2);
 
@@ -307,7 +341,7 @@ int RSC (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	return 0;
 }
 
-int SBC (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int SBC (int Rd, int Rn, int Operand2, int I, int S){
 	long long dif;
 	int Src2 = addressing_mode_handler(I, Operand2);
 
@@ -322,7 +356,23 @@ int SBC (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	return 0;
 }
 
-int SUB (int Rd, int Rn, int Operand2, int I, int S, int CC){
+int STR(int Rd, int Rn, int Operand2, int I) {
+	int Src2 = addressing_mode_mem(I, Operand2);
+	int Adr = CURRENT_STATE.REGS[Rn] + Src2;
+	//printf("DEBUG: adr = 0x%X, src2 = %d, rd = %d\n", Adr, Src2, CURRENT_STATE.REGS[Rd]);
+	mem_write_32(Adr, CURRENT_STATE.REGS[Rd]);
+	return 0;
+}
+
+int STRB(int Rd, int Rn, int Operand2, int I) {
+	int Src2 = addressing_mode_mem(I, Operand2);
+	int Adr = CURRENT_STATE.REGS[Rn] + Src2;
+	//printf("DEBUG: adr = 0x%X, src2 = %d, rd = %d\n", Adr, Src2, CURRENT_STATE.REGS[Rd]&0xFF);
+	mem_write_32(Adr, (CURRENT_STATE.REGS[Rd]&0xFF));
+	return 0;
+}
+
+int SUB (int Rd, int Rn, int Operand2, int I, int S){
 	long long dif;
 	int Src2 = addressing_mode_handler(I, Operand2);
 
@@ -336,6 +386,26 @@ int SUB (int Rd, int Rn, int Operand2, int I, int S, int CC){
 	return 0;
 }
 
-int TEQ (int Rd, int Rn, int Operand2, int I, int S, int CC){return 0;}
-int TST (int Rd, int Rn, int Operand2, int I, int S, int CC){return 0;}
+int TEQ (int Rd, int Rn, int Operand2, int I, int S){
+	int cur;
+	int Src2 = addressing_mode_handler(I, Operand2);
+	
+	cur = CURRENT_STATE.REGS[Rn] ^ Src2;
+
+	set_flags(cur);
+		
+	return 0;
+}
+
+int TST (int Rd, int Rn, int Operand2, int I, int S){
+	int cur;
+	int Src2 = addressing_mode_handler(I, Operand2);
+	
+	cur = CURRENT_STATE.REGS[Rn] & Src2;
+
+	set_flags(cur);
+		
+	return 0;
+}
+
 int SWI (char* i_){return 0;}

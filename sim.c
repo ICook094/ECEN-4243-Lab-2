@@ -122,87 +122,86 @@ int data_process(char* i_) {
 	int I = i_[6]-'0';
 	int S = i_[11]-'0';
 	int CC = bchar_to_int(d_cond);
-	printf("Opcode = %s\n Rn = %d\n Rd = %d\n Operand2 = %s\n I = %d\n S = %d\n COND = %s\n", d_opcode, Rn, Rd, byte_to_binary12(Operand2), I, S, byte_to_binary4(CC));
-	printf("\n");
-
+	printf("Opcode = %s\nRn = %d\nRd = %d\nOperand2 = %s\nI = %d\nS = %d\nCOND = %s\n", d_opcode, Rn, Rd, byte_to_binary12(Operand2), I, S, byte_to_binary4(CC));
+	
 	if(!strcmp(d_opcode,"0000")) {
 		printf("--- This is an AND instruction. \n");
-		AND(Rd, Rn, Operand2, I, S, CC);
+		AND(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"0001")) {
 		printf("--- This is an EOR instruction. \n");
-		EOR(Rd, Rn, Operand2, I, S, CC);
+		EOR(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"0010")) {
 		printf("--- This is an SUB instruction. \n");
-		SUB(Rd, Rn, Operand2, I, S, CC);
+		SUB(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"0011")) {
 		printf("--- This is an RSB instruction. \n");
-		RSB(Rd, Rn, Operand2, I, S, CC);
+		RSB(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"0100")) {
 		printf("--- This is an ADD instruction. \n");
-		ADD(Rd, Rn, Operand2, I, S, CC);
+		ADD(Rd, Rn, Operand2, I, S);
 		return 0;
 	}	
 	else if(!strcmp(d_opcode,"0101")) {
 		printf("--- This is an ADC instruction. \n");
-		ADC(Rd, Rn, Operand2, I, S, CC);
+		ADC(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"0110")) {
 		printf("--- This is an SBC instruction. \n");
-		SBC(Rd, Rn, Operand2, I, S, CC);
+		SBC(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"0111")) {
 		printf("--- This is an RSC instruction. \n");
-		RSC(Rd, Rn, Operand2, I, S, CC);
+		RSC(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1000")) {
 		printf("--- This is an TST instruction. \n");
-		TST(Rd, Rn, Operand2, I, S, CC);
+		TST(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1001")) {
 		printf("--- This is an TEQ instruction. \n");
-		TEQ(Rd, Rn, Operand2, I, S, CC);
+		TEQ(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1010")) {
 		printf("--- This is an CMP instruction. \n");
-		CMP(Rd, Rn, Operand2, I, S, CC);
+		CMP(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1011")) {
 		printf("--- This is an CMN instruction. \n");
-		CMN(Rd, Rn, Operand2, I, S, CC);
+		CMN(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1100")) {
 		printf("--- This is an ORR instruction. \n");
-		ORR(Rd, Rn, Operand2, I, S, CC);
+		ORR(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1101")) {
 		printf("--- This is an MOV instruction. \n");
-		MOV(Rd, Rn, Operand2, I, S, CC);
+		MOV(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1110")) {
 		printf("--- This is an BIC instruction. \n");
-		BIC(Rd, Rn, Operand2, I, S, CC);
+		BIC(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else if(!strcmp(d_opcode,"1111")) {
 		printf("--- This is an MVN instruction. \n");
-		MVN(Rd, Rn, Operand2, I, S, CC);
+		MVN(Rd, Rn, Operand2, I, S);
 		return 0;
 	}
 	else {
@@ -216,7 +215,14 @@ int branch_process(char* i_) {
 	
 	/* This function execute branch instruction */
 
-	/* Add branch instructions here */ 
+	/* Add branch instructions here */
+	char d_cond[5];
+	d_cond[0] = i_[0]; 
+	d_cond[1] = i_[1]; 
+	d_cond[2] = i_[2]; 
+	d_cond[3] = i_[3]; 
+	d_cond[4] = '\0';
+	int CC = bchar_to_int(d_cond);	
 	int L = i_[7] - '0';
 	char imm[25];
 	imm[24] = '\0';
@@ -224,11 +230,8 @@ int branch_process(char* i_) {
 		imm[i] = i_[i+8];
 	}
 	int imm24 = bchar_to_int(imm);
-	if((imm24 >> 23) & 1) {
-		imm24 ^= 0xFF000000;
-		printf("DEBUG: imm24 = %d", imm24);
-	}
-	printf("\n");
+	imm24 = sign_extend(imm24, 24);
+	printf("L = %d \nimm24 = %d \nCC = %d \n", L, imm24, CC);
 	if(L) {
 		printf("--- This is a BL instruction. \n");
 		BL(imm24);
@@ -244,6 +247,7 @@ int branch_process(char* i_) {
 
 }
 
+//not implemented
 int mul_process(char* i_) {
 
 	/* This function execute multiply instruction */
@@ -272,18 +276,46 @@ int transfer_process(char* i_) {
 	int Rd = bchar_to_int(rd);
 	int Operand2 = bchar_to_int(operand2);
 	int I = i_[6]-'0';
-	int B = i_[9]-'0';
-	int L = i_[11]-'0';
-	//printf("Opcode = %s\n Rn = %d\n Rd = %d\n Operand2 = %s\n I = %d\n S = %d\n COND = %s\n", d_opcode, Rn, Rd, byte_to_binary12(Operand2), I, S, byte_to_binary4(CC));
-	printf("\n");
+	//int B = i_[9]-'0';
+	//int L = i_[11]-'0';
+	char bl[3]; bl[2] = '\0';
+	bl[1] = i_[11];
+	bl[0] = i_[9];
+	int BL = bchar_to_int(bl);
+	printf("Rn = %d\nRd = %d\nOperand2 = %s\nI = %d\nBL = %d\n", Rn, Rd, byte_to_binary12(Operand2), I, BL);
+	switch(BL) {
+		case 0: 
+			printf("--- This is an STR instruction. \n");
+			STR(Rd, Rn, Operand2, I);
+			return 0;
+		case 1: 
+			printf("--- This is an LDR instruction. \n");
+			LDR(Rd, Rn, Operand2, I);
+			return 0;
+		case 2: 
+			printf("--- This is an STRB instruction. \n");
+			STRB(Rd, Rn, Operand2, I);
+			return 0;
+		case 3: 
+			printf("--- This is an LDRB instruction. \n");
+			LDRB(Rd, Rn, Operand2, I);
+			return 0;
+	}
 	return 1;
 
 }
 
 int interruption_process(char* i_) {
 
-	SWI(i_);
-	RUN_BIT = 0;
+	
+	char bb[9]; bb[8] = '\0';
+	for(int i = 0; i < 8; i++) {
+		bb[i] = i_[i + 24];
+	}
+	int BB = bchar_to_int(bb);
+	if(BB == 10)
+		SWI(i_);
+		RUN_BIT = 0;
 	return 0;
 
 }
@@ -314,8 +346,9 @@ int decode_and_execute(char* i_) {
 	d_cond[3] = i_[3]; 
 	d_cond[4] = '\0';
 	int CC = bchar_to_int(d_cond);
-	if(check_cond(CC)) {
+	if(!check_cond(CC)) {
 		printf("- Condition check failed. Treating as NOP. \n");
+		printf("CC = %d\n", CC);
 		return 0;
 	}
 	if((i_[4] == '1') && (i_[5] == '0') && (i_[6] == '1')) {
@@ -356,10 +389,9 @@ void process_instruction() {
 	*/	 
 
 	unsigned int inst_word = mem_read_32(CURRENT_STATE.PC);
-	printf("\nThe instruction is: %x \n", inst_word);
+	printf("\nThe instruction is: 0x%X8 \n", inst_word);
 	printf("--------------------------------\n");
 	printf("%s \n", byte_to_binary32(inst_word));
-	printf("\n");
 	decode_and_execute(byte_to_binary32(inst_word));
 
 	NEXT_STATE.PC += 4;
