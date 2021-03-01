@@ -8,5 +8,5 @@ run `make` in the project folder
 Our team's completion of the provided ARM simulator framework. Currently, the simulator only implements the instructions specified in the assignment. This notably excludes the multiply instructions.
 Try running the included example program with ./sim fib.x
 
-##### Authors
+### Authors
 Alex Sensintaffaf & Josh Minton
