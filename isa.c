@@ -331,7 +331,7 @@ int RSC (int Rd, int Rn, int Operand2, int I, int S){
 	long long dif;
 	int Src2 = addressing_mode_handler(I, Operand2);
 
-	dif = Src2 - CURRENT_STATE.REGS[Rn] - ~C_CUR;
+	dif = Src2 - CURRENT_STATE.REGS[Rn] - (~C_CUR&1);
 	int cur = (int)dif;
 	NEXT_STATE.REGS[Rd] = cur;
 	
@@ -346,7 +346,7 @@ int SBC (int Rd, int Rn, int Operand2, int I, int S){
 	int Src2 = addressing_mode_handler(I, Operand2);
 
 	//SBC is identical to SUB save for the inverted C bit term.
-	dif = CURRENT_STATE.REGS[Rn] - Src2 - ~C_CUR;
+	dif = CURRENT_STATE.REGS[Rn] - Src2 - (~C_CUR&1);
 	int cur = (int)dif;
 	NEXT_STATE.REGS[Rd] = cur;
 	
